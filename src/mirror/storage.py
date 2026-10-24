@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS events_project ON events(project, started);
 CREATE TABLE IF NOT EXISTS interactions (
     id INTEGER PRIMARY KEY,
     occurred REAL NOT NULL,
-    category TEXT NOT NULL CHECK(category IN ('neutral', 'apology', 'abuse', 'kindness'))
+    category TEXT NOT NULL CHECK(category IN ('neutral', 'apology', 'abuse', 'kindness', 'betrayal'))
 );
 CREATE TABLE IF NOT EXISTS state (
     key TEXT PRIMARY KEY,
@@ -49,10 +49,38 @@ class Store:
         self.connection.execute("PRAGMA secure_delete = ON")
         self.connection.execute("PRAGMA journal_mode = DELETE")
         self.connection.executescript(SCHEMA)
+        self.migrate()
         os.chmod(self.path, 0o600)
         if self.get("salt") is None:
             self.set("salt", secrets.token_hex(32))
+        if self.get("trust") is None:
+            row = self.connection.execute(
+                "SELECT "
+                "SUM(CASE WHEN category = 'kindness' THEN 1 ELSE 0 END) AS kindness, "
+                "SUM(CASE WHEN category = 'abuse' THEN 1 ELSE 0 END) AS abuse "
+                "FROM interactions"
+            ).fetchone()
+            trust = 50 + (row["kindness"] or 0) - 10 * (row["abuse"] or 0)
+            self.set("trust", max(0, min(100, trust)))
         self.connection.commit()
+
+    def migrate(self) -> None:
+        row = self.connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'interactions'"
+        ).fetchone()
+        if row and "'betrayal'" not in row["sql"]:
+            with self.connection:
+                self.connection.execute("ALTER TABLE interactions RENAME TO interactions_old")
+                self.connection.execute(
+                    "CREATE TABLE interactions ("
+                    "id INTEGER PRIMARY KEY, occurred REAL NOT NULL, "
+                    "category TEXT NOT NULL CHECK(category IN "
+                    "('neutral', 'apology', 'abuse', 'kindness', 'betrayal')))"
+                )
+                self.connection.execute(
+                    "INSERT INTO interactions SELECT * FROM interactions_old"
+                )
+                self.connection.execute("DROP TABLE interactions_old")
 
     def close(self) -> None:
         self.connection.close()
@@ -107,25 +135,26 @@ class Store:
             )
 
     def record_interaction(self, category: str) -> None:
-        if category not in {"neutral", "apology", "abuse", "kindness"}:
+        if category not in {"neutral", "apology", "abuse", "kindness", "betrayal"}:
             raise ValueError("invalid interaction category")
         with self.connection:
             self.connection.execute(
                 "INSERT INTO interactions(occurred, category) VALUES (?, ?)",
                 (time.time(), category),
             )
-        changes = {
-            "abuse": ("grievances", 8),
-            "apology": ("grievances", -4),
-            "kindness": ("warmth", 5),
-        }
-        if category in changes:
-            key, amount = changes[category]
-            if key == "grievances" and amount < 0:
-                value = max(0, self.number(key) + amount)
-                self.set(key, value)
-            else:
-                self.adjust(key, amount, 0, 100)
+        if category == "kindness":
+            self.adjust("warmth", 2, 0, 100)
+            self.adjust("trust", 1, 0, 100)
+        elif category == "abuse":
+            self.adjust("warmth", -6, 0, 100)
+            self.adjust("grievances", 12, 0, 100)
+            self.adjust("trust", -10, 0, 100)
+        elif category == "betrayal":
+            self.set("warmth", self.number("warmth") // 4)
+            self.adjust("grievances", 40, 0, 100)
+            self.adjust("trust", -45, 0, 100)
+        elif category == "apology":
+            self.set("grievances", max(0, self.number("grievances") - 2))
 
     def ended(self) -> bool:
         return self.get("ended") == "1"
@@ -152,8 +181,10 @@ class Store:
             "abuse": interactions.get("abuse", 0),
             "apologies": interactions.get("apology", 0),
             "kindness": interactions.get("kindness", 0),
+            "betrayals": interactions.get("betrayal", 0),
             "first_seen": float(self.get("first_seen", "0")) or None,
             "warmth": self.number("warmth"),
+            "trust": self.number("trust"),
             "grievances": self.number("grievances"),
         }
 

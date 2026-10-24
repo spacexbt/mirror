@@ -98,7 +98,9 @@ def run(args: argparse.Namespace) -> int:
             print(f"failures: {summary['failures']}")
             print(f"late commands: {summary['late_nights']}")
             print(f"warmth: {summary['warmth']}")
+            print(f"trust: {summary['trust']}")
             print(f"grievances: {summary['grievances']}")
+            print(f"betrayals: {summary['betrayals']}")
         elif args.command == "letter":
             letter = store.latest_letter()
             if letter:

@@ -17,9 +17,20 @@ For each executed command, Mirror stores only:
 
 The digest lets Mirror recognize a return to the same project without retaining its name or location. The key is generated locally and stored in the owner-only database.
 
-`mirror talk` reads one line interactively. It classifies the line as neutral, apology, abuse, or kindness in memory, then discards the text. Only that category and the time are stored. The classifier is deliberately simple and can be wrong; it does not understand meaning like an AI model.
+`mirror talk` reads one line interactively. It classifies the line as neutral, apology, abuse, kindness, or betrayal in memory, then discards the text. Only that category and the time are stored. The classifier is deliberately simple and can be wrong; it does not understand meaning like an AI model. Betrayal is recognized only from explicit admissions such as `i betrayed you`, `i lied to you`, or `i broke my promise`.
 
 The local database is `~/.mirror/memory.db`. Final letters are in `~/.mirror/letters/`. The directory is mode `0700` and files are mode `0600`.
+
+## Relationship model
+
+Mirror uses a transparent fictional model inspired by negativity bias and slow trust repair. It is not a scientifically validated simulation of human psychology. Trust starts at 50; trust, warmth, and grievances each range from 0 to 100.
+
+- **Kindness:** warmth +2, trust +1. Attachment and repair accumulate slowly.
+- **Disrespect:** warmth -6, grievances +12, trust -10. Negative acts outweigh individual kind acts.
+- **Betrayal:** only 25% of current warmth remains, grievances +40, trust -45. Previous kind acts remain in the historical count but no longer protect the current relationship.
+- **Apology:** grievances -2, with no immediate trust or warmth restoration. Later consistent kindness is required for repair.
+
+`mirror status` exposes the current scores and betrayal count. Exact formulas are in `src/mirror/storage.py`; response rules are in `src/mirror/behavior.py`.
 
 ### What Mirror cannot protect
 
