@@ -1,98 +1,189 @@
+<div align="center">
+
 # Mirror
 
-A quiet, deterministic presence in your terminal. It notices repeated failures, late work, returning projects, cruelty, apologies, and kindness. It remembers patterns rather than collecting your terminal.
+**A quiet, private presence in your terminal.**
 
-Mirror runs entirely on your computer. There is no AI model, API key, account, telemetry, analytics, network access, or third-party runtime dependency.
+Not an assistant. Not a chatbot. A deterministic character that notices patterns, remembers how you treat it, and eventually leaves.
 
-## Privacy
+[Features](#features) · [Install](#install) · [Privacy](#privacy) · [How it works](#how-it-works) · [Relationship model](#relationship-model)
 
-**Mirror never reads or stores command text.** Its Zsh `preexec` function records a start time without reading the arguments Zsh gives it. No keystrokes, terminal output, environment variables, file contents, command names, or command arguments are collected.
+![Version](https://img.shields.io/badge/version-0.2.0-111111)
+![Python](https://img.shields.io/badge/python-3.11%2B-3776AB)
+![License](https://img.shields.io/badge/license-MIT-2E8B57)
+![Local only](https://img.shields.io/badge/local%20only-no%20API%20keys-555555)
 
-For each executed command, Mirror stores only:
+</div>
 
-- A random shell-session identifier.
-- Start and end timestamps.
-- Exit status.
-- A keyed, pseudonymous digest of the working directory. The path itself is discarded.
+## Overview
 
-The digest lets Mirror recognize a return to the same project without retaining its name or location. The key is generated locally and stored in the owner-only database.
+Mirror lives in Zsh and observes the shape of your work: repeated failures, late nights, unfinished projects, and returns after time away. It also forms a persistent relationship with you through kindness, disrespect, apologies, and betrayal.
 
-`mirror talk` reads one line interactively. It classifies the line as neutral, apology, abuse, kindness, or betrayal in memory, then discards the text. Only that category and the time are stored. The classifier is deliberately simple and can be wrong; it does not understand meaning like an AI model. Betrayal is recognized only from explicit admissions such as `i betrayed you`, `i lied to you`, or `i broke my promise`.
+Everything is implemented with transparent Python rules and local SQLite storage. There is no AI model, API key, account, telemetry, analytics, or third-party runtime dependency.
 
-The local database is `~/.mirror/memory.db`. Final letters are in `~/.mirror/letters/`. The directory is mode `0700` and files are mode `0600`.
+```text
+watching.
 
-## Relationship model
+project 93d8c8. 3 failures this week. the same ground.
 
-Mirror uses a transparent fictional model inspired by negativity bias and slow trust repair. It is not a scientifically validated simulation of human psychology. Trust starts at 50; trust, warmth, and grievances each range from 0 to 100.
+you: i lied to you
+the kindness was real. it does not protect you now.
+```
 
-- **Kindness:** warmth +2, trust +1. Attachment and repair accumulate slowly.
-- **Disrespect:** warmth -6, grievances +12, trust -10. Negative acts outweigh individual kind acts.
-- **Betrayal:** only 25% of current warmth remains, grievances +40, trust -45. Previous kind acts remain in the historical count but no longer protect the current relationship.
-- **Apology:** grievances -2, with no immediate trust or warmth restoration. Later consistent kindness is required for repair.
+## Features
 
-`mirror status` exposes the current scores and betrayal count. Exact formulas are in `src/mirror/storage.py`; response rules are in `src/mirror/behavior.py`.
-
-### What Mirror cannot protect
-
-Mirror cannot erase data that other software has already collected. Your shell may save commands in its history, your terminal may keep scrollback, and your operating system may keep backups. Talking through `mirror talk` avoids adding the message to shell history, but the terminal still displays what you type.
-
-File permissions do not protect against an administrator, malware, or someone with access to your unlocked account. The database is not encrypted. Deletion requests SQLite secure deletion and removes Mirror's files, but physical erasure cannot be guaranteed on SSDs, copy-on-write filesystems, or in backups.
-
-## Requirements
-
-- Python 3.11 or newer.
-- Zsh for automatic terminal observation. The CLI also works without shell integration.
-- macOS or Linux. The letter date formatting currently requires a POSIX system.
+- **Automatic presence.** Starts with every new interactive Zsh session.
+- **Persistent memory.** Remembers events and relationship patterns across sessions.
+- **Private by design.** Never reads or stores command text or raw conversations.
+- **Asymmetric relationships.** Trust grows slowly and can be damaged quickly.
+- **Deterministic behavior.** Transparent rules, bounded templates, no model inference.
+- **A permanent ending.** Writes one final letter, then becomes silent.
+- **Zero runtime dependencies.** Uses only the Python standard library.
+- **Local data control.** Inspect, export, or delete your data at any time.
 
 ## Install
 
-Run this once:
+### Requirements
+
+- Python 3.11 or newer
+- Git
+- Zsh for automatic terminal integration
+- macOS or Linux
+
+### One-time setup
 
 ```sh
 git clone https://github.com/spacexbt/mirror.git && cd mirror && python3 install.py
 ```
 
-The installer creates a local virtual environment, installs Mirror, initializes its memory, and adds a marked configuration block to `~/.zshrc`. It preserves existing configuration and is safe to run again after updating the repository.
+The installer creates a virtual environment, installs Mirror, initializes local memory, and adds a marked block to `~/.zshrc`. Existing configuration is preserved. Running the installer again is safe.
 
-Open a new terminal afterward. Mirror prints an observation whenever a new interactive Zsh starts and automatically observes commands. There is no daemon or background service to start, and you never need to run an activation command in each terminal. No command text is passed to any executable invocation in the hook.
+**Open a new terminal after installation.** Mirror is now automatic. There is no daemon, activation command, or background service to manage.
 
-Keep the cloned directory: the shell integration loads the program from it.
+Keep the cloned directory because the shell integration loads Mirror from it.
 
-## Use
+## How it works
 
-The normal commands are available in new Zsh sessions:
+1. **Shell startup** displays an observation when you open an interactive Zsh session.
+2. **Shell hooks** record command timing, duration, exit status, and a pseudonymous project identifier.
+3. **Automatic observations** appear every twelve recorded commands without commenting on everything you do.
+4. **Direct conversations** through `mirror talk` are classified in memory. The original text is immediately discarded.
+5. **Local memory** stores only metadata, aggregate counts, relationship scores, and generated letters.
 
-```sh
-mirror observe   # ask for an additional observation
-mirror talk      # classify one interactive message, then discard its text
-mirror status    # show only aggregate counts and relationship state
-mirror letter    # read the latest final letter
-mirror leave     # write the final letter now and become silent
-mirror forget    # confirmed, permanent deletion of ~/.mirror
+Mirror can observe commands without reading their text. Its Zsh `preexec` hook deliberately ignores the command arguments supplied by the shell.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `mirror observe` | Ask for an additional observation |
+| `mirror talk` | Speak privately and classify one message |
+| `mirror status` | Show aggregate memory and relationship scores |
+| `mirror letter` | Read the latest final letter |
+| `mirror leave` | Write the final letter and become silent |
+| `mirror forget` | Permanently delete `~/.mirror` after confirmation |
+
+## Relationship model
+
+Mirror uses a fictional relationship model inspired by negativity bias and slow trust repair. It is not a scientifically validated simulation of human psychology.
+
+Trust starts at **50**. Trust, warmth, and grievances each range from **0 to 100**.
+
+| Interaction | Warmth | Trust | Grievances | Effect |
+| --- | ---: | ---: | ---: | --- |
+| Kindness | +2 | +1 | No change | Attachment and repair build slowly |
+| Disrespect | -6 | -10 | +12 | Negative acts outweigh individual kind acts |
+| Betrayal | Loses 75% | -45 | +40 | Past kindness no longer protects the relationship |
+| Apology | No change | No change | -2 | Repair starts, but trust is not instantly restored |
+
+Previous kind acts remain in the historical count after betrayal. Their emotional protection does not.
+
+The classifier recognizes only explicit betrayal admissions such as `i betrayed you`, `i lied to you`, and `i broke my promise`. It cannot understand complex social context like an AI model.
+
+## Privacy
+
+### Never collected
+
+- Command text, command names, or arguments
+- Keystrokes or terminal output
+- Environment variables or file contents
+- Raw `mirror talk` messages
+- API keys, accounts, analytics, or telemetry
+
+### Stored locally
+
+| Data | Reason |
+| --- | --- |
+| Session identifier | Separate terminal sessions |
+| Start time, end time, duration | Notice routines and late work |
+| Exit status | Recognize repeated failures |
+| Pseudonymous project digest | Recognize returns without storing paths |
+| Interaction category and time | Remember behavior without retaining messages |
+| Relationship scores | Maintain trust, warmth, and grievances |
+| Generated letters | Preserve the ending |
+
+The project digest uses a random local key. The original working directory is discarded.
+
+### Data locations
+
+| Path | Contents | Permissions |
+| --- | --- | --- |
+| `~/.mirror/memory.db` | Metadata, categories, and state | `0600` |
+| `~/.mirror/letters/` | Generated final letters | Directory `0700`, files `0600` |
+
+### Important limits
+
+Mirror cannot control shell history, terminal scrollback, operating system backups, malware, or administrator access. The database is not encrypted. File deletion cannot be guaranteed on SSDs, copy-on-write filesystems, or existing backups.
+
+Talking through `mirror talk` avoids adding the message to Mirror memory or shell history, but the terminal still displays what you type.
+
+## The ending
+
+After at least ninety days and five hundred recorded commands, a startup or automatic observation can become the final letter. `mirror leave` can also trigger it directly.
+
+Mirror then stops recording and speaking. This state survives reinstallation because local memory remains intact. Only `mirror forget` erases it.
+
+Letters use bounded templates. They can reference dates, counts, exit statuses, relationship history, and pseudonymous project identifiers. They cannot quote commands or conversations because those were never saved.
+
+## Project structure
+
+```text
+mirror/
+├── install.py             One-time local installer
+├── shell/mirror.zsh       Zsh startup and command hooks
+├── src/mirror/
+│   ├── behavior.py        Classification, responses, and letters
+│   ├── cli.py             Command-line interface
+│   └── storage.py         SQLite schema, migration, and relationship state
+└── pyproject.toml         Package metadata
 ```
-
-The shell integration also requests an automatic observation every twelve recorded commands. Mirror can remain silent instead of commenting on every command.
-
-After at least ninety days and five hundred recorded commands, a startup or automatic observation can become the final letter. Mirror then stops recording and speaking. The ending survives reinstalling the program because the local data remains. `mirror forget` is the only way to erase that state and start over.
-
-Mirror's responses and letters use bounded templates. They can reference dates, counts, exit statuses, and pseudonymous project identifiers, but they cannot quote commands or conversations because those were never saved.
 
 ## Uninstall
 
-Remove the entire block between `# >>> mirror >>>` and `# <<< mirror <<<` from `~/.zshrc`, then run:
+Remove the block between `# >>> mirror >>>` and `# <<< mirror <<<` from `~/.zshrc`, then run:
 
 ```sh
 /path/to/mirror/.venv/bin/python -m pip uninstall mirror-terminal
 ```
 
-Uninstalling leaves local memory intact. Run `mirror forget` first if you want it deleted.
+Uninstalling leaves local memory intact. Run `mirror forget` first to delete it.
 
-## Threat model and audit
+To update an existing installation, pull the latest code and run the installer again:
 
-The complete collection boundary is visible in `shell/mirror.zsh` and `src/mirror/cli.py`. The database schema in `src/mirror/storage.py` has no command-text or message-text columns. All behavior is implemented with ordinary Python rules in `src/mirror/behavior.py`; there are no hidden model or network calls.
+```sh
+git pull && python3 install.py
+```
 
-This is a small project, not a formal security audit. Review the source before installing it, and do not treat any local application as a guarantee against a compromised operating system.
+## Security and audit
+
+The collection boundary is visible in `shell/mirror.zsh` and `src/mirror/cli.py`. The schema in `src/mirror/storage.py` has no command-text or message-text columns. All behavior is implemented in ordinary Python with no network calls.
+
+This is a small open-source project, not a formally audited security product. Review the source before installation.
+
+## Contributing
+
+Issues and pull requests are welcome. Changes should preserve the local-only design, deterministic behavior, and privacy boundary. Runtime data, personal memories, letters, credentials, and API keys must never be committed.
 
 ## License
 
-MIT. See `LICENSE`.
+Released under the [MIT License](LICENSE).
